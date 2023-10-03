@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Dict, List, Optional, Tuple, cast
 from langchain.base_language import BaseLanguageModel
 from tools.versioned_vector_store import VersionedVectorStoreTool
-import zenml_utils
+import zenml_code.zenml_utils as zenml_utils
 
 
 class URLType(Enum):
@@ -13,9 +13,10 @@ class URLType(Enum):
     REDDIT = 4
     LINKEDIN = 5
 
+
 class URL:
     def __init__(self, url: str, scrape: Optional[bool] = False):
-        """"Create a URL object.
+        """ "Create a URL object.
 
         Args:
             url: The URL to create.
@@ -47,8 +48,11 @@ class URL:
         elif "linkedin.com" in url:
             return URLType.LINKEDIN
         else:
-            raise ValueError("Invalid URL type. Only the following types are supported: {}".format([t.name for t in URLType]))
-
+            raise ValueError(
+                "Invalid URL type. Only the following types are supported: {}".format(
+                    [t.name for t in URLType]
+                )
+            )
 
     @classmethod
     def url_exists(cls, url: str) -> bool:
@@ -61,11 +65,12 @@ class URL:
             True if the URL exists, False otherwise.
         """
         import requests
+
         try:
             response = requests.get(url)
         except requests.exceptions.ConnectionError:
-            return False 
-        return response.status_code == 200       
+            return False
+        return response.status_code == 200
 
     def get_hash(self) -> str:
         """Get the hash of the URL.
@@ -77,10 +82,18 @@ class URL:
             The hash of the URL.
         """
         import hashlib
+
         return hashlib.sha256(self.url.encode()).hexdigest()
 
+
 class Documentation:
-    def __init__(self, base_url: str, latest_version: str, version_cutoff: str = None, skip_versions: List[str] = []):
+    def __init__(
+        self,
+        base_url: str,
+        latest_version: str,
+        version_cutoff: str = None,
+        skip_versions: List[str] = [],
+    ):
         """Create a Documentation object.
 
         A Documentation object needs to have a latest version object at the moment
@@ -125,7 +138,7 @@ class Documentation:
         # TODO
         return versions, global_latest_version
 
-    def get_urls(self)-> Dict[str, List[URL]]:
+    def get_urls(self) -> Dict[str, List[URL]]:
         """Returns valid URLs for different versions of the documentation.
 
         TODO One limitation is that the version needs to be present in the URL
@@ -163,7 +176,8 @@ class InfraConfig:
         """
         self.orchestrator = orchestrator
         self.credentials = credentials
-        
+
+
 class VersionedURLs:
     def __init__(self, urls: List[URL], version: str):
         """Create a VersionedURLs object.
@@ -191,11 +205,14 @@ class VersionedURLs:
         """
         return self.version
 
+
 class Agent:
     _tools: List[VersionedVectorStoreTool]
     _llm: BaseLanguageModel
 
-    def __init__(self, llm: BaseLanguageModel, tools: List[VersionedVectorStoreTool], config):
+    def __init__(
+        self, llm: BaseLanguageModel, tools: List[VersionedVectorStoreTool], config
+    ):
         self.config = config
         self._llm = llm
         self._tools = tools
@@ -203,7 +220,7 @@ class Agent:
     @property
     def llm(self):
         return self._llm
-    
+
     @property
     def tools(self):
         return self._tools
@@ -217,7 +234,13 @@ class Agent:
     def configure_llm(self, llm: BaseLanguageModel):
         self._llm = llm
 
-    def _get_new_data_urls(self, project_name: str, existing_tools: List[VersionedVectorStoreTool], docs: Documentation, general_urls: List[URL]) -> List[URL]:
+    def _get_new_data_urls(
+        self,
+        project_name: str,
+        existing_tools: Dict[str, VersionedVectorStoreTool],
+        docs: Documentation,
+        general_urls: List[URL],
+    ) -> Dict[str, List[URL]]:
         """Get the URLs that have not been indexed yet.
 
         Args:
@@ -226,10 +249,12 @@ class Agent:
             general_urls: Any URLs that the agent should derive knowledge from.
 
         Returns:
-            A list of URLs that have not been indexed yet.
+            A dict of URLs with version as key and a list of URLs as values.
         """
         # initialize a dict of versioned URLs
-        versioned_urls: Dict[str, List[URL]] = {docs.global_latest_version: []}
+        versioned_urls: Dict[str, List[URL]] = {
+            docs.global_latest_version: general_urls
+        }
 
         # get the URLs from the documentation
         docs_urls = docs.get_urls()
@@ -239,25 +264,29 @@ class Agent:
             versioned_urls[version].extend(urls)
 
         # get the URLs that have not been indexed yet
-        new_urls = []
-        for tool in existing_tools:
-            # get the version from the name of the tool
-            # the first part is the name of the project.
-            # if it doesn't match, skip the tool.
+        for version in existing_tools:
+            # if the name of the tool does not match the project name,
+            # skip the tool.
+            tool = existing_tools[version]
             names = tool.name.split("-")
             if names[0] != project_name:
                 continue
-            version = names[1]
+            # get the URLs that have not been indexed yet
+            versioned_urls[version] = [
+                url
+                for url in versioned_urls[version]
+                if url.get_hash() not in tool.urls
+            ]
 
-            # for a given version, get all URLs in versioned_urls whose
-            # hash is not present in tool_urls
-            for url in versioned_urls[version]:
-                if url.get_hash() not in tool.urls:
-                    new_urls.append(url)
+        return versioned_urls
 
-        return new_urls
-    
-    def educate(self, project_name: str, docs: Documentation, general_urls: List[URL], infra_config: Optional[InfraConfig] = None):
+    def educate(
+        self,
+        project_name: str,
+        docs: Documentation,
+        general_urls: List[URL],
+        infra_config: Optional[InfraConfig] = None,
+    ):
         """Educate the agent on a set of documents.
 
         Take the input documentation and URLs and create vector
@@ -282,7 +311,12 @@ class Agent:
         # make a list of hashed URLs a part of the tool definition.
         # TODO: in the future, make a part of the custom vector store?
         # get URLs that have not been indexed yet
-        new_urls = self._get_new_data_urls(existing_tools, docs_urls.extend(general_urls))
+        new_urls = self._get_new_data_urls(
+            project_name="zenml",
+            existing_tools=existing_tools,
+            docs=docs,
+            general_urls=general_urls,
+        )
 
         # call the zenml pipeline to create the index
         zenml_utils.trigger_pipeline(project_name, new_urls, infra_config)
