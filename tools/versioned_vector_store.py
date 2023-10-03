@@ -3,3 +3,4 @@ from langchain.tools import VectorStoreQATool
 
 class VersionedVectorStoreTool(VectorStoreQATool):
     urls: List[str]
+    version: str
