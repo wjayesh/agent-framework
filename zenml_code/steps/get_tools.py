@@ -44,7 +44,8 @@ def get_tools(
     """
     # check if a tool (and in turn, a vector store) already
     # exists for some versions
-    existing_tools = zenml_utils.get_existing_tools()
+    # TODO figure out how to get the current pipeline name in step
+    existing_tools = zenml_utils.get_existing_tools(pipeline_name="index_creation_pipeline")
 
     # update the existing vector stores with the new ones
     for version in versioned_vector_stores:
@@ -52,6 +53,9 @@ def get_tools(
             name=f"{project_name}-{version}",
             vector_store=versioned_vector_stores[version],
             version=version,
+            description="Use this tool to answer questions about "
+            f"project {project_name} at version {version}.",
+            # TODO add more description
             # add the hash of all urls for that version
             # to the tool
             urls=[url.get_hash() for url in all_urls[version]],
