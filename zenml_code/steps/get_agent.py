@@ -12,13 +12,14 @@
 #  or implied. See the License for the specific language governing
 #  permissions and limitations under the License.
 
-
 from zenml import step
-from agent.agent import Agent
+from typing import TYPE_CHECKING, Any
+if TYPE_CHECKING:
+    from agent.agent import Agent
 
-
+# TODO making the return types Agent leads to some forward Ref errors
 @step(enable_cache=True)
-def get_agent(agent: Agent) -> Agent:
+def get_agent(agent: Any) -> Any:
     """Returns the current agent with prompt and user-supplied tools.
 
     This is only a way to track configuration of the agent across versions.

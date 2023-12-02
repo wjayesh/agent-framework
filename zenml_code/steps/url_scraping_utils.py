@@ -19,7 +19,7 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from agent.agent import URL
+from knowledge.url import URL
 
 logger = getLogger(__name__)
 

@@ -21,7 +21,7 @@ from langchain.text_splitter import (
 )
 from langchain.vectorstores import FAISS, VectorStore
 from zenml import step
-import zenml_utils
+import zenml_code.zenml_utils as zenml_utils
 
 
 @step(enable_cache=True)

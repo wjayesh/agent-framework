@@ -21,10 +21,10 @@ from langchain.text_splitter import (
 )
 from langchain.vectorstores import FAISS, VectorStore
 from zenml import step
-from agent.agent import URL
+from knowledge.url import URL
 
 from tools.versioned_vector_store import VersionedVectorStoreTool
-import zenml_utils
+import zenml_code.zenml_utils as zenml_utils
 
 
 @step(enable_cache=True)
