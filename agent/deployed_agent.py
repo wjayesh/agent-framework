@@ -1,7 +1,11 @@
+from __future__ import annotations
 from typing import Any, Dict
 
 from langchain.agents import AgentExecutor
-from agent.agent import Agent
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from agent.agent import Agent
 from tools.versioned_vector_store import VersionedVectorStoreTool
 
 
@@ -38,7 +42,9 @@ class DeployedAgent(AgentExecutor):
 
         return self.PROMPT.format(prefix=self.agent.PREFIX, tools=tools)
 
-    def __init__(self, agent: Agent, memory, validator, deployment_config, version) -> None:
+    def __init__(
+        self, agent: Agent, memory, validator, deployment_config, version
+    ) -> None:
         """Initializes the agent.
 
         Args:
@@ -48,7 +54,16 @@ class DeployedAgent(AgentExecutor):
             deployment_config: The deployment config to use.
             version: The version of the agent to use.
         """
+        from langchain.chains import LLMChain
+        from agent.agent import Agent
         self.version = version
+        # TODO langsucks right now we're overwriting the llm chain
+        # which was defined at agent definition. We should define the chain
+        # once and here, ideally.
+        agent.llm_chain = LLMChain(
+            llm=agent.llm,
+            prompt=Agent.create_prompt(agent.get_allowed_tools(version=version)),
+        )
         return self.from_agent_and_tools(
             agent=agent, tools=agent.get_allowed_tools(version=version)
         )
